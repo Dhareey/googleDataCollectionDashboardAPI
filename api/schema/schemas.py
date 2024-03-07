@@ -9,12 +9,16 @@ from passlib.context import CryptContext
 class CreateGoogleRoads(BaseModel):
     name: str
     length: float
-    camera_number: Optional[int]
-    status: int
-    collection_date: Optional[date]
-    upload_status: Optional[str]
-    upload_date: Optional[date]
+    cam_name: Optional[str] = None
+    camera_number: Optional[int] = None
+    status: Optional[int] = None
+    collection_date: Optional[date] = None
+    upload_status: Optional[str] = None
+    upload_date: Optional[date] = None
+    state_name: Optional[str] = None
+    state_code: Optional[str] = None
     geometry: List[List[float]]
+    
     
 class CreateCollectedRoads(BaseModel):
     name: str
@@ -30,6 +34,8 @@ class GetGoogleRoads(BaseModel):
     collection_date: date
     upload_status: str
     upload_date: date
+    state_name: str
+    state_code: str
     geometry: List[List[float]]
     
     

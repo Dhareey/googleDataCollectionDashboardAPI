@@ -15,11 +15,14 @@ class Googleroads(Base):
     id = Column(Integer, primary_key = True, index= True)
     name = Column(String, nullable = True)
     length = Column(Float, nullable = True)
+    cam_name = Column(String, nullable = True)
     camera_number = Column(Integer, nullable = True)  # Camera
     status = Column(Integer, nullable = True)
     collection_date = Column(Date,  nullable = True)
     upload_status = Column(String, nullable = True)
     upload_date = Column(Date, nullable= True)
+    state_name = Column(String, nullable= True)
+    state_code = Column(String, nullable = True)
     geometry = Column(Geometry(geometry_type="LINESTRING", srid=4326))
     
     

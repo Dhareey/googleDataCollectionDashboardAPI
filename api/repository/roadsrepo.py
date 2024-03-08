@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from api.models import models
-from api.schema.schemas import  GetCollectedRoad, CreateCollectedRoads, CreateGoogleRoads
+from api.schema.schemas import  GetCollectedRoad, CreateCollectedRoads, CreateGoogleRoads, EditGoogleRoads
+from fastapi import HTTPException
 from datetime import date
 
 
@@ -74,4 +75,43 @@ def create_field_roads(request: CreateCollectedRoads, db:Session):
     db.commit()
     db.refresh(db_create_field_data)
     return "Collected Road Added Successfully"
-## GET
+
+
+## PUT REQUESTS
+
+def edit_google_data(road_id: str, request: EditGoogleRoads, db: Session):
+    lookup_col = None
+    if str(road_id).startswith("Road"):
+        lookup_col = models.Googleroads.name
+    elif str(id).startswith('VID'):
+        lookup_col = models.Googleroads.cam_name
+    else:
+        lookup_col = models.Googleroads.id
+        
+    existing_road = db.query(models.Googleroads).filter(lookup_col == road_id).first()
+    if existing_road is None:
+        raise HTTPException(status_code = 404, detail= "Road not found")
+    
+    if request.name != None:
+        existing_road.name = request.name
+    if request.length != None:
+        existing_road.length  = request.length
+    if request.cam_name != None:
+        existing_road.cam_name = request.cam_name
+    if request.camera_number != None:
+        existing_road.camera_number = request.camera_number
+    if request.status != None:
+        existing_road.status = request.status
+    if request.collection_date != None:
+        existing_road.collection_date = request.collection_date
+    if request.upload_status != None:
+        existing_road.upload_status = request.upload_status
+    if request.upload_date != None:
+        existing_road.upload_date = request.upload_date
+    if request.state_name != None:
+        existing_road.state_name = request.state_name
+    if request.state_code != None:
+        existing_road.state_code = request.state_code
+    db.add(existing_road)
+    db.commit()
+    return "Update Successful"

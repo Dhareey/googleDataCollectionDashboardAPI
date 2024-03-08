@@ -59,6 +59,19 @@ def create_google_roads(request: CreateGoogleRoads, db:Session):
 
 
 def create_field_roads(request: CreateCollectedRoads, db:Session):
+    try:
+        road_geom = f"LINESTRING({', '.join([f'{x} {y}' for x, y in request.geometry])})"
+    except:
+        return {"Detail": "Invalid Coordinates"}
+    db_create_field_data = models.collectedRoads(
+        name = request.name,
+        date = request.date,
+        camera_number = request.camera_number,
+        geometry = road_geom
+    )
     
-
+    db.add(db_create_field_data)
+    db.commit()
+    db.refresh(db_create_field_data)
+    return "Collected Road Added Successfully"
 ## GET

@@ -6,7 +6,7 @@ from api.models import models
 ###############################################################
 from api.schema.schemas import CreateGoogleRoads, CreateCollectedRoads
 #from api.models.models import Road
-from api.repository.roadsrepo import create_google_roads, road_already_uploaded,field_road_already_uploaded
+from api.repository.roadsrepo import create_google_roads, road_already_uploaded,field_road_already_uploaded, create_field_roads
 
 from shapely.geometry import MultiLineString, LineString, shape
 from geoalchemy2 import WKBElement
@@ -27,7 +27,16 @@ def create_field_data(field_data: CreateCollectedRoads, db:Session= Depends(get_
     field_data_exist = field_road_already_uploaded(field_data.name, db)
     if field_data_exist:
         return {'Detail': "Data Previously Collected"}
-    return 
+    return create_field_roads(field_data, db)
+
+
+@router.get("/api/get_google_roads", status_code= status.HTTP_200_OK)
+def get_all_google_roads(skip: int=0, limit: int=170000, db:Session=Depends(get_db)):
+    all_roads = db.query(models.Googleroads).offset(skip).limit(limit).all()
+    for eachroad in all_roads:
+        line = wkb.loads(bytes(eachroad.geometry.data))
+        eachroad.geometry = [[point[0], point[1]] for point in line.coords]
+    return all_roads
 """
 
 @router.post("/api/create_road")

@@ -9,7 +9,7 @@ from datetime import date
 ### POST
 ##Verify Google Road Has Been uploaded Before
 def road_already_uploaded(roadname: str, db:Session):
-    """Check if a team is already registered"""
+    """Check if a road is already uploaded"""
     existingroadName = db.query(models.Googleroads).filter(
         models.Googleroads.name == roadname).first()
     if existingroadName:
@@ -37,6 +37,7 @@ def create_google_roads(request: CreateGoogleRoads, db:Session):
     uploadDate = request.upload_date if request.upload_date else date(2030, 1, 1)
     road_state = request.state_name if request.state_name else ""
     road_state_code = request.state_code if request.state_code else ""
+    road_region = request.region if request.region else ""
     
     
     db_create_google_road_data = models.Googleroads(
@@ -50,6 +51,7 @@ def create_google_roads(request: CreateGoogleRoads, db:Session):
         upload_date = uploadDate,
         state_name = road_state,
         state_code = road_state_code,
+        region = road_region,
         geometry = road_geom
     )
     
@@ -112,6 +114,8 @@ def edit_google_data(road_id: str, request: EditGoogleRoads, db: Session):
         existing_road.state_name = request.state_name
     if request.state_code != None:
         existing_road.state_code = request.state_code
+    if request.region != None:
+        existing_road.region = request.region
     db.add(existing_road)
     db.commit()
-    return "Update Successful"
+    return "Update Successfull"

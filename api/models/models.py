@@ -23,6 +23,7 @@ class Googleroads(Base):
     upload_date = Column(Date, nullable= True)
     state_name = Column(String, nullable= True)
     state_code = Column(String, nullable = True)
+    region = Column(String, nullable= True)
     geometry = Column(Geometry(geometry_type="LINESTRING", srid=4326))
     
     

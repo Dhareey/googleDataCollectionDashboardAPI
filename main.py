@@ -27,7 +27,6 @@ app.add_middleware(
 
 app.include_router(roads.router)
 #ngrok http 8000
-#postgresql://postgres:Liferocks7071@localhost/streetview
 ## things to write for T
 ## Short explanation of the process
 ## Significance

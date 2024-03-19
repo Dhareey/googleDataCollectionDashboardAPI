@@ -3,6 +3,7 @@ from api.models import models
 from api.schema.schemas import  GetCollectedRoad, CreateCollectedRoads, CreateGoogleRoads, EditGoogleRoads
 from fastapi import HTTPException
 from datetime import date
+from shapely.ops import unary_union
 
 
 ### Google 2024 road scope
@@ -78,6 +79,25 @@ def create_field_roads(request: CreateCollectedRoads, db:Session):
     db.refresh(db_create_field_data)
     return "Collected Road Added Successfully"
 
+## BACKGROUND TASK WHEN CREATING NEW FIELD DATA
+async def select_roads_within_3m(field_data: CreateCollectedRoads, db: Session):
+    # Convert field_data geometry to LineString
+    field_road_line = LineString(field_data.geometry)
+
+    # Buffer field road by 3 meters
+    field_road_buffer = field_road_line.buffer(0.00003)  # Buffer by approximately 3 meters (assuming WGS84)
+
+    # Get unary union of the buffered field road
+    field_road_union = unary_union([field_road_buffer])
+
+    # Query Google roads within unary union of buffered field road
+    google_roads_within_buffer = db.query(models.Googleroads).filter(models.Googleroads.geometry.within(field_road_union)).all()
+
+    # Process the selected Google roads or save them to database
+    # You can perform any further processing or save the roads to the database here
+    road_names = [road.name for road in google_roads_within_buffer]
+    print(road_names)
+
 
 ## PUT REQUESTS
 
@@ -116,6 +136,5 @@ def edit_google_data(road_id: str, request: EditGoogleRoads, db: Session):
         existing_road.state_code = request.state_code
     if request.region != None:
         existing_road.region = request.region
-    db.add(existing_road)
     db.commit()
     return "Update Successfull"

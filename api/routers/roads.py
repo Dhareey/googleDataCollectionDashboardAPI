@@ -14,6 +14,7 @@ from shapely.geometry import MultiLineString, LineString, shape
 from geoalchemy2 import WKBElement
 from shapely import wkb, wkt
 
+
 router = APIRouter(tags=['Roads'])
 
 
@@ -30,13 +31,16 @@ async def create_field_data(field_data: CreateCollectedRoads, db:Session= Depend
     if field_data_exist:
         return {'Detail': "Data Previously Collected"}
     return create_field_roads(field_data, db)
+    #return {"Details": "Successfull"}
 
 
 @router.get("/api/get_all_google_roads", status_code= status.HTTP_200_OK)
-async def get_all_google_roads(state_name: str = None, cam_number: int=None,coverage: int=None,upload_status: str= None,col_start_date: datetime= None,col_end_date:datetime= None,upload_start_date:datetime=None, upload_end_date:datetime=None, skip: int=0, limit: int=10000, db:Session=Depends(get_db)):
+async def get_all_google_roads(state_name: str = None, region: str = None, cam_number: int=None,coverage: int=None,upload_status: str= None,col_start_date: datetime= None,col_end_date:datetime= None,upload_start_date:datetime=None, upload_end_date:datetime=None, skip: int=0, limit: int=170500, db:Session=Depends(get_db)):
     all_roads = db.query(models.Googleroads)
     if state_name:
         all_roads = all_roads.filter(models.Googleroads.state_name == state_name)
+    if region:
+        all_roads = all_roads.filter(models.Googleroads.region == region)
     if cam_number:
         all_roads = all_roads.filter(models.Googleroads.camera_number == cam_number)
     if coverage:
@@ -111,16 +115,16 @@ async def get_general_stats(db: Session= Depends(get_db)):
         "percent_covered" : (total_length_covered/total_kms) * 100,
         'total_uploads': total_file_uploaded,
         'total_upload_km' : total_upload_km/1000,
-        'cam1_km' : cam1_km/1000,
-        'cam1_percent': (cam1_km/total_length_covered) *100,
-        'cam2_km' : cam2_km/1000,
-        'cam2_percent' :(cam2_km/total_length_covered) *100,
-        'cam3_km' : cam3_km/1000,
-        'cam3_percent': (cam3_km/total_length_covered) * 100,
-        'cam4_km' : cam4_km/1000,
-        'cam4_percent': (cam4_km/ total_length_covered) * 100,
-        'cam5_km': cam5_km/1000,
-        'cam5_percent': (cam5_km/total_length_covered) * 100
+        'cam1_km' : cam1_km/1000 if cam1_km!=0.0 else 0,
+        'cam1_percent': (cam1_km/total_length_covered) *100 if cam1_km!=0.0 else 0,
+        'cam2_km' : cam2_km/1000 if cam2_km!=0.0 else 0,
+        'cam2_percent' :(cam2_km/total_length_covered) *100 if cam2_km!=0.0 else 0,
+        'cam3_km' : cam3_km/1000 if cam3_km!=0.0 else 0,
+        'cam3_percent': (cam3_km/total_length_covered) * 100 if cam3_km!=0.0 else 0,
+        'cam4_km' : cam4_km/1000 if cam4_km!=0.0 else 0,
+        'cam4_percent': (cam4_km/ total_length_covered) * 100 if cam4_km!=0.0 else 0,
+        'cam5_km': cam5_km/1000 if cam5_km!=0.0 else 0,
+        'cam5_percent': (cam5_km/total_length_covered) * 100 if cam5_km!=0.0 else 0
     }
     #123, 4,1
     

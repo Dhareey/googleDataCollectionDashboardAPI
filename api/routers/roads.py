@@ -12,7 +12,7 @@ from sqlalchemy import func, asc
 
 from shapely.geometry import MultiLineString, LineString, shape
 from geoalchemy2 import WKBElement
-from shapely import wkb, wkt
+from shapely import wkb
 
 
 router = APIRouter(tags=['Roads'])

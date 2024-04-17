@@ -23,8 +23,13 @@ class Settings:
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", 'localhost')
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", 5432)
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "tdd")
+    DB_URL: str= os.getenv("DB_URL")
 
-    DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
+    #DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
+    DATABASE_URL = "postgresql://postgres:shadie77@54.226.124.34:5432/fastapiDB"
+
+    
+    #DATABASE_URL= "postgres://dhareey:H72Sg9z1JLP24RChvHDKVgghgMorVEqt@dpg-cod80520si5c738qqdqg-a.oregon-postgres.render.com/googlestreetview"
 
 
 settings = Settings()

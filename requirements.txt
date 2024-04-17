@@ -59,3 +59,7 @@ ujson==5.8.0
 uvicorn==0.23.1
 watchfiles==0.19.0
 websockets==11.0.3
+
+
+ #DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
+    DATABASE_URL= "postgres://dhareey:H72Sg9z1JLP24RChvHDKVgghgMorVEqt@dpg-cod80520si5c738qqdqg-a.oregon-postgres.render.com/googlestreetview"

@@ -23,7 +23,7 @@ class Settings:
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", 'localhost')
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", 5432)
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "tdd")
-    DB_URL: str= os.getenv("DB_URL")
+    RENDER_DB_URL: str= os.getenv("DB_URL")
     RENDER_POSTGRES_USER: str= os.getenv("RENDER_POSTGRES_USER")
     RENDER_POSTGRES_PASSWORD: str= os.getenv("RENDER_PASSWORD")
     RENDER_POSTGRES_SERVER: str= os.getenv("RENDER_SERVER")
@@ -32,7 +32,7 @@ class Settings:
 
     #DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
     #DATABASE_URL = f"{AWS_URL}"
-    
+    #DATABASE_URL = f"{RENDER_DB_URL}"
     
     DATABASE_URL= f"postgresql://{RENDER_POSTGRES_USER}:{RENDER_POSTGRES_PASSWORD}@{RENDER_POSTGRES_SERVER}/{RENDER_DB}"
 

@@ -35,7 +35,7 @@ async def create_field_data(field_data: CreateCollectedRoads, db:Session= Depend
 
 
 @router.get("/api/get_all_google_roads", status_code= status.HTTP_200_OK)
-async def get_all_google_roads(state_name: str = None, region: str = None, cam_number: int=None,coverage: int=None,upload_status: str= None,col_start_date: datetime= None,col_end_date:datetime= None,upload_start_date:datetime=None, upload_end_date:datetime=None, skip: int=0, limit: int=170500, db:Session=Depends(get_db)):
+async def get_all_google_roads(state_name: str = None, region: str = None, cam_number: int=None,coverage: int=None,upload_status: str= None,col_start_date: str= None,col_end_date:str= None,upload_start_date:datetime=None, upload_end_date:datetime=None, skip: int=0, limit: int=170500, db:Session=Depends(get_db)):
     all_roads = db.query(models.Googleroads)
     if state_name:
         all_roads = all_roads.filter(models.Googleroads.state_name == state_name)
@@ -48,9 +48,21 @@ async def get_all_google_roads(state_name: str = None, region: str = None, cam_n
     if upload_status:
         all_roads = all_roads.filter(models.Googleroads.upload_status == upload_status)
     if col_start_date:
-        all_roads = all_roads.filter(models.Googleroads.collection_date >= col_start_date)
+        try:
+            start = datetime.strptime(col_start_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.Googleroads.collection_date >= start)
+        except:
+            return {
+                "Error": "Invalid Start Date"
+            }
     if col_end_date:
-        all_roads = all_roads.filter(models.Googleroads.collection_date <= col_end_date)
+        try:
+            end = datetime.strptime(col_end_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.Googleroads.collection_date <= end)
+        except:
+            return{
+                "Error": "Invalid End Date"
+            }
     if upload_start_date:
         all_roads = all_roads.filter(models.Googleroads.upload_date >= upload_start_date)
     if upload_end_date:
@@ -93,120 +105,165 @@ async def update_google_road(road_id: str, updated_road: EditGoogleRoads, db: Se
     return "Done"
 
 @router.get("/api/get_stats", response_model =GeneralStatistics, status_code= status.HTTP_200_OK)
-async def get_general_stats(db: Session= Depends(get_db)):
+async def get_general_stats(db: Session = Depends(get_db), col_start_date: str = None, col_end_date: str = None):
+    all_roads = db.query(models.Googleroads)  # Initialize queryset with all data
+    
+    if col_start_date:
+        try:
+            start = datetime.strptime(col_start_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.Googleroads.collection_date >= start)
+        except:
+            return {
+                "Error": "Invalid Start Date"
+            }
+    if col_end_date:
+        try:
+            end = datetime.strptime(col_end_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.Googleroads.collection_date <= end)
+        except:
+            return{
+                "Error": "Invalid End Date"
+            }
+
     """Returns general statistics about the Google Roads"""
-    total_length_covered = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0).scalar() or 0.0
-    total_kms = db.query(func.sum(models.Googleroads.length)).scalar() or 0.0
+    total_length_covered = all_roads.filter(models.Googleroads.status > 0).with_entities(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).scalar() or 0.0
+    total_kms = all_roads.with_entities(func.sum(models.Googleroads.length)).scalar() or 0.0
     
-    total_file_uploaded= db.query(func.count(models.Googleroads.length)).filter(models.Googleroads.upload_status == "Uploaded").scalar() or 0.0
-    total_upload_km = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.upload_status == "Uploaded").scalar() or 0.0
+    total_file_uploaded = all_roads.filter(models.Googleroads.upload_status == "Uploaded").with_entities(func.count(models.Googleroads.length)).scalar() or 0.0
+    total_upload_km = all_roads.filter(models.Googleroads.upload_status == "Uploaded").with_entities(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).scalar() or 0.0
     
-    cam1_km = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 1).scalar() or 0.0
+    cam1_km = all_roads.filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 1).with_entities(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).scalar() or 0.0
+    cam2_km = all_roads.filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 2).with_entities(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).scalar() or 0.0
+    cam3_km = all_roads.filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 3).with_entities(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).scalar() or 0.0
+    cam4_km = all_roads.filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 4).with_entities(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).scalar() or 0.0
+    cam5_km = all_roads.filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 5).with_entities(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).scalar() or 0.0
+    cam6_km = all_roads.filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 6).with_entities(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).scalar() or 0.0
     
-    cam2_km = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 2).scalar() or 0.0
-    
-    cam3_km = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 3).scalar() or 0.0
-    
-    cam4_km = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 4).scalar() or 0.0
-    
-    cam5_km = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.camera_number == 5).scalar() or 0.0
-    return{
-        "covered_km" : total_length_covered/1000,
-        "percent_covered" : (total_length_covered/total_kms) * 100,
+    return {
+        "covered_km": total_length_covered / 1000,
+        "percent_covered": (total_length_covered / total_kms) * 100 if total_kms else 0,
         'total_uploads': total_file_uploaded,
-        'total_upload_km' : total_upload_km/1000,
-        'cam1_km' : cam1_km/1000 if cam1_km!=0.0 else 0,
-        'cam1_percent': (cam1_km/total_length_covered) *100 if cam1_km!=0.0 else 0,
-        'cam2_km' : cam2_km/1000 if cam2_km!=0.0 else 0,
-        'cam2_percent' :(cam2_km/total_length_covered) *100 if cam2_km!=0.0 else 0,
-        'cam3_km' : cam3_km/1000 if cam3_km!=0.0 else 0,
-        'cam3_percent': (cam3_km/total_length_covered) * 100 if cam3_km!=0.0 else 0,
-        'cam4_km' : cam4_km/1000 if cam4_km!=0.0 else 0,
-        'cam4_percent': (cam4_km/ total_length_covered) * 100 if cam4_km!=0.0 else 0,
-        'cam5_km': cam5_km/1000 if cam5_km!=0.0 else 0,
-        'cam5_percent': (cam5_km/total_length_covered) * 100 if cam5_km!=0.0 else 0
+        'total_upload_km': total_upload_km / 1000,
+        'cam1_km': cam1_km / 1000 if cam1_km != 0.0 else 0,
+        'cam1_percent': (cam1_km / total_length_covered) * 100 if total_length_covered != 0.0 else 0,
+        'cam2_km': cam2_km / 1000 if cam2_km != 0.0 else 0,
+        'cam2_percent': (cam2_km / total_length_covered) * 100 if total_length_covered != 0.0 else 0,
+        'cam3_km': cam3_km / 1000 if cam3_km != 0.0 else 0,
+        'cam3_percent': (cam3_km / total_length_covered) * 100 if total_length_covered != 0.0 else 0,
+        'cam4_km': cam4_km / 1000 if cam4_km != 0.0 else 0,
+        'cam4_percent': (cam4_km / total_length_covered) * 100 if total_length_covered != 0.0 else 0,
+        'cam5_km': cam5_km / 1000 if cam5_km != 0.0 else 0,
+        'cam5_percent': (cam5_km / total_length_covered) * 100 if total_length_covered != 0.0 else 0,
+        'cam6_km': cam6_km / 1000 if cam6_km != 0.0 else 0,
+        'cam6_percent': (cam6_km / total_length_covered) * 100 if total_length_covered != 0.0 else 0
     }
+
     #123, 4,1
     
-@router.get("/api/get_state_stats", response_model =StateStatistics, status_code= status.HTTP_200_OK)
-async def get_state_statistics(db: Session= Depends(get_db)):
-    oyo_covered = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.state_name == "Oyo").scalar() or 0.0
-    total_oyo = db.query(func.sum(models.Googleroads.length).filter(models.Googleroads.state_name=="Oyo")).scalar() or 0.0
-    oyo_start_date = db.query(models.Googleroads.collection_date)\
-                    .filter(models.Googleroads.status > 0, models.Googleroads.state_name == 'Oyo')\
-                    .order_by(asc(models.Googleroads.collection_date))\
-                    .first()
-    oyo_starting = oyo_start_date[0] if oyo_start_date else "Not started yet"
+@router.get("/api/get_state_stats", status_code= status.HTTP_200_OK)
+async def get_state_statistics(db: Session=Depends(get_db), col_start_date: str=None, col_end_date: str=None):
+    all_roads = db.query(models.Googleroads)  # Initialize queryset with all data
     
-    ogun_covered = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.state_name == "Ogun").scalar() or 0.0
-    total_ogun = db.query(func.sum(models.Googleroads.length).filter(models.Googleroads.state_name=="Ogun")).scalar() or 0.0
-    ogun_start_date = db.query(models.Googleroads.collection_date)\
-                    .filter(models.Googleroads.status > 0, models.Googleroads.state_name == 'Ogun')\
-                    .order_by(asc(models.Googleroads.collection_date))\
-                    .first()
-    ogun_starting = ogun_start_date[0] if ogun_start_date else "Not started yet"
-    
-    lag_covered = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.state_name == "Lagos").scalar() or 0.0
-    total_lag = db.query(func.sum(models.Googleroads.length).filter(models.Googleroads.state_name=="Lagos")).scalar() or 0.0
-    lag_start_date = db.query(models.Googleroads.collection_date)\
-                    .filter(models.Googleroads.status > 0, models.Googleroads.state_name == 'Lagos')\
-                    .order_by(asc(models.Googleroads.collection_date))\
-                    .first()
-    lag_starting = lag_start_date[0] if lag_start_date else "Not started yet"
-    
-    osun_covered = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.state_name == "Osun").scalar() or 0.0
-    total_osun = db.query(func.sum(models.Googleroads.length).filter(models.Googleroads.state_name=="Osun")).scalar() or 0.0
-    osun_start_date = db.query(models.Googleroads.collection_date)\
-                    .filter(models.Googleroads.status > 0, models.Googleroads.state_name == 'Osun')\
-                    .order_by(asc(models.Googleroads.collection_date))\
-                    .first()
-    osun_starting = osun_start_date[0] if osun_start_date else "Not started yet"
-    
-    ondo_covered = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.state_name == "Ondo").scalar() or 0.0
-    total_ondo = db.query(func.sum(models.Googleroads.length).filter(models.Googleroads.state_name=="Ondo")).scalar() or 0.0
-    ondo_start_date = db.query(models.Googleroads.collection_date)\
-                    .filter(models.Googleroads.status > 0, models.Googleroads.state_name == 'Ondo')\
-                    .order_by(asc(models.Googleroads.collection_date))\
-                    .first()
-    ondo_starting = ondo_start_date[0] if ondo_start_date else "Not started yet"
-    
-    edo_covered = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.state_name == "Edo").scalar() or 0.0
-    total_edo = db.query(func.sum(models.Googleroads.length).filter(models.Googleroads.state_name=="Edo")).scalar() or 0.0
-    edo_start_date = db.query(models.Googleroads.collection_date)\
-                    .filter(models.Googleroads.status > 0, models.Googleroads.state_name == 'Edo')\
-                    .order_by(asc(models.Googleroads.collection_date))\
-                    .first()
-    edo_starting = edo_start_date[0] if edo_start_date else "Not started yet"
-    
-    delta_covered = db.query(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).filter(models.Googleroads.status > 0, models.Googleroads.state_name == "Delta").scalar() or 0.0
-    total_delta = db.query(func.sum(models.Googleroads.length).filter(models.Googleroads.state_name=="Delta")).scalar() or 0.0
-    delta_start_date = db.query(models.Googleroads.collection_date)\
-                    .filter(models.Googleroads.status > 0, models.Googleroads.state_name == 'Delta')\
-                    .order_by(asc(models.Googleroads.collection_date))\
-                    .first()
-    delta_starting = delta_start_date[0] if delta_start_date else "Not started yet"
+    if col_start_date:
+        try:
+            start = datetime.strptime(col_start_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.Googleroads.collection_date >= start)
+        except:
+            return {
+                "Error": "Invalid Start Date"
+            }
+    if col_end_date:
+        try:
+            end = datetime.strptime(col_end_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.Googleroads.collection_date <= end)
+        except:
+            return {
+                "Error": "Invalid End Date"
+            }
+            
+    def calculate_state_statistics(state_name):
+        total_length_covered = all_roads.filter(models.Googleroads.state_name == state_name, models.Googleroads.status > 0).with_entities(func.sum(models.Googleroads.length * models.Googleroads.status / 100)).scalar() or 0.0
+        total_length = all_roads.filter(models.Googleroads.state_name == state_name).with_entities(func.sum(models.Googleroads.length)).scalar() or 0.0
+        start_date = all_roads.filter(models.Googleroads.state_name == state_name, models.Googleroads.status > 0).with_entities(func.min(models.Googleroads.collection_date)).scalar()
+        starting = start_date if start_date else "Not started yet"
+        return {
+            "covered_km": round(total_length_covered / 1000, 2),
+            "percent_covered": round((total_length_covered / total_length) * 100, 2) if total_length else 0,
+            "start_date": starting
+        }
+
+    oyo_stats = calculate_state_statistics("Oyo")
+    ogun_stats = calculate_state_statistics("Ogun")
+    lagos_stats = calculate_state_statistics("Lagos")
+    osun_stats = calculate_state_statistics("Osun")
+    ondo_stats = calculate_state_statistics("Ondo")
+    edo_stats = calculate_state_statistics("Edo")
+    delta_stats = calculate_state_statistics("Delta")
+
     return {
-        "Oyo": oyo_covered/1000,
-        "Oyo_percent": (oyo_covered/total_oyo) *100,
-        "Oyo_start_date" : oyo_starting,
-        "Ogun": ogun_covered/1000,
-        "Ogun_percent" : (ogun_covered/total_ogun) * 100,
-        "Ogun_start_date" : ogun_starting,
-        "Lagos": lag_covered/1000, 
-        "Lagos_percent": (lag_covered/total_lag) * 100,
-        "Lagos_start_date" : lag_starting,
-        "Osun": osun_covered/1000,
-        "Osun_percent": (osun_covered/total_osun) * 100,
-        "Osun_start_date" : osun_starting,
-        "Ondo": ondo_covered/1000,
-        "Ondo_percent": (ondo_covered/total_ondo) * 100,
-        "Ondo_start_date" : ondo_starting,
-        "Edo": edo_covered/1000,
-        "Edo_percent": (edo_covered/total_edo) *100,
-        "Edo_start_date" : edo_starting,
-        "Delta": delta_covered/1000,
-        "Delta_percent": (delta_covered/total_delta),
-        "Delta_start_date" : delta_starting
+        "Oyo": oyo_stats,
+        "Ogun": ogun_stats,
+        "Lagos": lagos_stats,
+        "Osun": osun_stats,
+        "Ondo": ondo_stats,
+        "Edo": edo_stats,
+        "Delta": delta_stats
     }
+
     
-    
+@router.get("/api/get_google_roads/osun", status_code = status.HTTP_200_OK)
+async def get_all_osun_roads(cam_number: int=None,col_start_date: str= None,col_end_date:str= None, skip: int=0, limit: int=170500, db:Session=Depends(get_db)):
+    all_roads = db.query(models.osun)
+    if cam_number:
+        all_roads = all_roads.filter(models.osun.camera_number == cam_number)
+    if col_start_date:
+        try:
+            start = datetime.strptime(col_start_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.osun.collection_date >= start)
+        except:
+            return {
+                "Error": "Invalid Start Date"
+            }
+    if col_end_date:
+        try:
+            end = datetime.strptime(col_end_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.osun.collection_date <= end)
+        except:
+            return{
+                "Error": "Invalid End Date"
+            }
+    all_roads = all_roads.order_by(models.osun.id)
+    roads = all_roads.offset(skip).limit(limit).all()
+    for eachroad in roads:
+        line = wkb.loads(bytes(eachroad.geometry.data))
+        eachroad.geometry = [[point[0], point[1]] for point in line.coords]
+    return roads
+
+
+@router.get("/api/get_google_roads/lagos", status_code = status.HTTP_200_OK)
+async def get_all_lagos_roads(cam_number: int=None,col_start_date: str= None,col_end_date:str= None, skip: int=0, limit: int=170500, db:Session=Depends(get_db)):
+    all_roads = db.query(models.lagos)
+    if cam_number:
+        all_roads = all_roads.filter(models.lagos.camera_number == cam_number)
+    if col_start_date:
+        try:
+            start = datetime.strptime(col_start_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.lagos.collection_date >= start)
+        except:
+            return {
+                "Error": "Invalid Start Date"
+            }
+    if col_end_date:
+        try:
+            end = datetime.strptime(col_end_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.lagos.collection_date <= end)
+        except:
+            return{
+                "Error": "Invalid End Date"
+            }
+    all_roads = all_roads.order_by(models.lagos.id)
+    roads = all_roads.offset(skip).limit(limit).all()
+    for eachroad in roads:
+        line = wkb.loads(bytes(eachroad.geometry.data))
+        eachroad.geometry = [[point[0], point[1]] for point in line.coords]
+    return roads

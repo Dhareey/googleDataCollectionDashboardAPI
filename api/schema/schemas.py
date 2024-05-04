@@ -76,29 +76,31 @@ class GeneralStatistics(BaseModel):
     cam4_percent: float
     cam5_km: float
     cam5_percent: float
+    cam6_km: float
+    cam6_percent: float
     
 class StateStatistics(BaseModel):
-    Oyo: float
-    Oyo_percent: float
-    Oyo_start_date : str
-    Ogun: float
-    Ogun_percent: float
-    Ogun_start_date : str
-    Lagos: float
-    Lagos_percent: float
-    Lagos_start_date : str
-    Osun: float
-    Osun_percent: float
-    Osun_start_date : str
-    Ondo: float
-    Ondo_percent: float
-    Ondo_start_date : str
-    Edo: float
-    Edo_percent: float
-    Edo_start_date : str
-    Delta: float
-    Delta_percent: float
-    Delta_start_date : str
+    Oyo: Union[float, str]
+    Oyo_percent: Union[float, str]
+    Oyo_start_date : Union[float, str]
+    Ogun: Union[float, str]
+    Ogun_percent: Union[float, str]
+    Ogun_start_date : Union[float, str]
+    Lagos: Union[float, str]
+    Lagos_percent: Union[float, str]
+    Lagos_start_date : Union[float, str]
+    Osun: Union[float, str]
+    Osun_percent: Union[float, str]
+    Osun_start_date : Union[float, str]
+    Ondo: Union[float, str]
+    Ondo_percent: Union[float, str]
+    Ondo_start_date : Union[float, str]
+    Edo: Union[float, str]
+    Edo_percent: Union[float, str]
+    Edo_start_date : Union[float, str]
+    Delta: Union[float, str]
+    Delta_percent: Union[float, str]
+    Delta_start_date : Union[float, str]
     
     
     

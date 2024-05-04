@@ -24,12 +24,17 @@ class Settings:
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", 5432)
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "tdd")
     DB_URL: str= os.getenv("DB_URL")
+    RENDER_POSTGRES_USER: str= os.getenv("RENDER_POSTGRES_USER")
+    RENDER_POSTGRES_PASSWORD: str= os.getenv("RENDER_PASSWORD")
+    RENDER_POSTGRES_SERVER: str= os.getenv("RENDER_SERVER")
+    RENDER_DB: str=os.getenv("RENDER_DB")
+    AWS_URL: str= os.getenv("AWS_DB")
 
     #DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
-    DATABASE_URL = "postgresql://postgres:shadie77@54.226.124.34:5432/fastapiDB"
-
+    #DATABASE_URL = f"{AWS_URL}"
     
-    #DATABASE_URL= "postgres://dhareey:H72Sg9z1JLP24RChvHDKVgghgMorVEqt@dpg-cod80520si5c738qqdqg-a.oregon-postgres.render.com/googlestreetview"
+    
+    DATABASE_URL= f"postgresql://{RENDER_POSTGRES_USER}:{RENDER_POSTGRES_PASSWORD}@{RENDER_POSTGRES_SERVER}/{RENDER_DB}"
 
 
 settings = Settings()

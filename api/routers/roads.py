@@ -4,15 +4,16 @@ from sqlalchemy.orm import Session
 from core.config import get_db
 from api.models import models
 ###############################################################
-from api.schema.schemas import CreateGoogleRoads, CreateCollectedRoads, EditGoogleRoads, GeneralStatistics, StateStatistics
+from api.schema.schemas import CreateGoogleRoads, CreateCollectedRoads, EditGoogleRoads, GeneralStatistics, StateStatistics, CreateGoogleJsonRoads
 #from api.models.models import Road
-from api.repository.roadsrepo import create_google_roads, road_already_uploaded,field_road_already_uploaded, create_field_roads, edit_google_data
+from api.repository.roadsrepo import create_google_roads, road_already_uploaded, edit_google_data, json_road_already_uploaded, create_google_json_roads
 from datetime import datetime
-from sqlalchemy import func, asc
+from sqlalchemy import func
 
 from shapely.geometry import MultiLineString, LineString, shape
 from geoalchemy2 import WKBElement
 from shapely import wkb
+from typing import List
 
 
 router = APIRouter(tags=['Roads'])
@@ -24,14 +25,6 @@ async def create_google_road_data(road_data: CreateGoogleRoads, db:Session = Dep
     if road_already_exist:
         return {'Detail': "Road Already Created"}
     return create_google_roads(road_data, db)
-
-@router.post('/api/create_field_data')
-async def create_field_data(field_data: CreateCollectedRoads, db:Session= Depends(get_db)):
-    field_data_exist = field_road_already_uploaded(field_data.name, db)
-    if field_data_exist:
-        return {'Detail': "Data Previously Collected"}
-    return create_field_roads(field_data, db)
-    #return {"Details": "Successfull"}
 
 
 @router.get("/api/get_all_google_roads", status_code= status.HTTP_200_OK)
@@ -210,60 +203,49 @@ async def get_state_statistics(db: Session=Depends(get_db), col_start_date: str=
         "Delta": delta_stats
     }
 
+ 
+
+@router.post('/api/create_google_road_json')
+async def create_google_json_road_data(road_data: CreateGoogleJsonRoads, db:Session = Depends(get_db)):
+    road_already_exist = json_road_already_uploaded(road_data.name, db)
+    if road_already_exist:
+        return {'Detail': "Road Already Created"}
+    return create_google_json_roads(road_data, db)
+
+@router.get('/api/get_all_google_json_roads', response_model=List[CreateGoogleJsonRoads])
+async def get_all_google_json_roads(state_name: str = None, region: str = None, cam_number: int=None,coverage: int=None,upload_status: str= None,col_start_date: str= None,col_end_date:str= None,upload_start_date:datetime=None, upload_end_date:datetime=None, skip: int=0, limit: int=220000,db: Session = Depends(get_db)):
+    all_roads = db.query(models.Google_Roads_Json)
+    if state_name:
+        all_roads = all_roads.filter(models.Google_Roads_Json.state_name == state_name)
+    if region:
+        all_roads = all_roads.filter(models.Google_Roads_Json.region == region)
+    if cam_number:
+        all_roads = all_roads.filter(models.Google_Roads_Json.camera_number == cam_number)
+    if coverage:
+        all_roads = all_roads.filter(models.Google_Roads_Json.status >= coverage)
+    if upload_status:
+        all_roads = all_roads.filter(models.Google_Roads_Json.upload_status == upload_status)
+    if col_start_date:
+        try:
+            start = datetime.strptime(col_start_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.Google_Roads_Json.collection_date >= start)
+        except:
+            return {
+                "Error": "Invalid Start Date"
+            }
+    if col_end_date:
+        try:
+            end = datetime.strptime(col_end_date, "%Y-%m-%d").date()
+            all_roads = all_roads.filter(models.Google_Roads_Json.collection_date <= end)
+        except:
+            return{
+                "Error": "Invalid End Date"
+            }
+    if upload_start_date:
+        all_roads = all_roads.filter(models.Google_Roads_Json.upload_date >= upload_start_date)
+    if upload_end_date:
+        all_roads = all_roads.filter(models.Google_Roads_Json.upload_date <= upload_end_date)
     
-@router.get("/api/get_google_roads/osun", status_code = status.HTTP_200_OK)
-async def get_all_osun_roads(cam_number: int=None,col_start_date: str= None,col_end_date:str= None, skip: int=0, limit: int=170500, db:Session=Depends(get_db)):
-    all_roads = db.query(models.osun)
-    if cam_number:
-        all_roads = all_roads.filter(models.osun.camera_number == cam_number)
-    if col_start_date:
-        try:
-            start = datetime.strptime(col_start_date, "%Y-%m-%d").date()
-            all_roads = all_roads.filter(models.osun.collection_date >= start)
-        except:
-            return {
-                "Error": "Invalid Start Date"
-            }
-    if col_end_date:
-        try:
-            end = datetime.strptime(col_end_date, "%Y-%m-%d").date()
-            all_roads = all_roads.filter(models.osun.collection_date <= end)
-        except:
-            return{
-                "Error": "Invalid End Date"
-            }
-    all_roads = all_roads.order_by(models.osun.id)
+    all_roads = all_roads.order_by(models.Google_Roads_Json.id)
     roads = all_roads.offset(skip).limit(limit).all()
-    for eachroad in roads:
-        line = wkb.loads(bytes(eachroad.geometry.data))
-        eachroad.geometry = [[point[0], point[1]] for point in line.coords]
-    return roads
-
-
-@router.get("/api/get_google_roads/lagos", status_code = status.HTTP_200_OK)
-async def get_all_lagos_roads(cam_number: int=None,col_start_date: str= None,col_end_date:str= None, skip: int=0, limit: int=170500, db:Session=Depends(get_db)):
-    all_roads = db.query(models.lagos)
-    if cam_number:
-        all_roads = all_roads.filter(models.lagos.camera_number == cam_number)
-    if col_start_date:
-        try:
-            start = datetime.strptime(col_start_date, "%Y-%m-%d").date()
-            all_roads = all_roads.filter(models.lagos.collection_date >= start)
-        except:
-            return {
-                "Error": "Invalid Start Date"
-            }
-    if col_end_date:
-        try:
-            end = datetime.strptime(col_end_date, "%Y-%m-%d").date()
-            all_roads = all_roads.filter(models.lagos.collection_date <= end)
-        except:
-            return{
-                "Error": "Invalid End Date"
-            }
-    all_roads = all_roads.order_by(models.lagos.id)
-    roads = all_roads.offset(skip).limit(limit).all()
-    for eachroad in roads:
-        line = wkb.loads(bytes(eachroad.geometry.data))
-        eachroad.geometry = [[point[0], point[1]] for point in line.coords]
     return roads

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from api.models import models
-from api.schema.schemas import  GetCollectedRoad, CreateCollectedRoads, CreateGoogleRoads, EditGoogleRoads
+from api.schema.schemas import  GetCollectedRoad, CreateCollectedRoads, CreateGoogleRoads, EditGoogleRoads, CreateGoogleJsonRoads
 from fastapi import HTTPException
 from datetime import date
 from shapely.ops import unary_union
@@ -62,43 +62,6 @@ def create_google_roads(request: CreateGoogleRoads, db:Session):
     return "Road added successfully"
 
 
-def create_field_roads(request: CreateCollectedRoads, db:Session):
-    try:
-        road_geom = f"LINESTRING({', '.join([f'{x} {y}' for x, y in request.geometry])})"
-    except:
-        return {"Detail": "Invalid Coordinates"}
-    db_create_field_data = models.collectedRoads(
-        name = request.name,
-        date = request.date,
-        camera_number = request.camera_number,
-        geometry = road_geom
-    )
-    
-    db.add(db_create_field_data)
-    db.commit()
-    db.refresh(db_create_field_data)
-    return "Collected Road Added Successfully"
-
-## BACKGROUND TASK WHEN CREATING NEW FIELD DATA
-async def select_roads_within_3m(field_data: CreateCollectedRoads, db: Session):
-    # Convert field_data geometry to LineString
-    field_road_line = LineString(field_data.geometry)
-
-    # Buffer field road by 3 meters
-    field_road_buffer = field_road_line.buffer(0.00003)  # Buffer by approximately 3 meters (assuming WGS84)
-
-    # Get unary union of the buffered field road
-    field_road_union = unary_union([field_road_buffer])
-
-    # Query Google roads within unary union of buffered field road
-    google_roads_within_buffer = db.query(models.Googleroads).filter(models.Googleroads.geometry.within(field_road_union)).all()
-
-    # Process the selected Google roads or save them to database
-    # You can perform any further processing or save the roads to the database here
-    road_names = [road.name for road in google_roads_within_buffer]
-    print(road_names)
-
-
 ## PUT REQUESTS
 
 def edit_google_data(road_id: str, request: EditGoogleRoads, db: Session):
@@ -138,3 +101,21 @@ def edit_google_data(road_id: str, request: EditGoogleRoads, db: Session):
         existing_road.region = request.region
     db.commit()
     return "Update Successfull"
+
+def json_road_already_uploaded(roadname: str, db:Session):
+    """Check if a road is already uploaded"""
+    existingroadName = db.query(models.Google_Roads_Json).filter(
+        models.Google_Roads_Json.name == roadname).first()
+    if existingroadName:
+        return True
+    return False
+
+
+def create_google_json_roads(request: CreateGoogleJsonRoads , db:Session):
+    road = models.Google_Roads_Json(**request.dict())
+    db.add(road)
+    db.commit()
+    db.refresh(road)
+    return road
+
+

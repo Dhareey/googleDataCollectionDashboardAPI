@@ -118,4 +118,15 @@ class CreateGoogleJsonRoads(BaseModel):
     geometry: Optional[dict] = None
     
     
-
+class EditGoogleJsonRoads(BaseModel):
+    name: Optional[str] = None
+    length: Optional[float] = None
+    cam_name: Optional[str] = None
+    camera_number: Optional[int] = None
+    status: Optional[int] = None
+    collection_date: Optional[date] = None
+    upload_status: Optional[str] = None
+    upload_date: Optional[date] = None
+    state_name: Optional[str] = None
+    region: Optional[str] = None
+    geometry: Optional[dict] = None

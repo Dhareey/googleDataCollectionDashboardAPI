@@ -4,16 +4,17 @@ from sqlalchemy.orm import Session
 from core.config import get_db
 from api.models import models
 ###############################################################
-from api.schema.schemas import CreateGoogleRoads, CreateCollectedRoads, EditGoogleRoads, GeneralStatistics, StateStatistics, CreateGoogleJsonRoads
+from api.schema.schemas import CreateGoogleRoads, CreateCollectedRoads, EditGoogleRoads, GeneralStatistics, StateStatistics, CreateGoogleJsonRoads, EditGoogleJsonRoads
 #from api.models.models import Road
 from api.repository.roadsrepo import create_google_roads, road_already_uploaded, edit_google_data, json_road_already_uploaded, create_google_json_roads
-from datetime import datetime
-from sqlalchemy import func
+from datetime import datetime, date
+from sqlalchemy import func, case
 
 from shapely.geometry import MultiLineString, LineString, shape
 from geoalchemy2 import WKBElement
 from shapely import wkb
 from typing import List
+from api.models.models import Google_Roads_Json
 
 
 router = APIRouter(tags=['Roads'])
@@ -203,7 +204,7 @@ async def get_state_statistics(db: Session=Depends(get_db), col_start_date: str=
         "Delta": delta_stats
     }
 
- 
+#################################################################################
 
 @router.post('/api/create_google_road_json')
 async def create_google_json_road_data(road_data: CreateGoogleJsonRoads, db:Session = Depends(get_db)):
@@ -249,3 +250,135 @@ async def get_all_google_json_roads(state_name: str = None, region: str = None, 
     all_roads = all_roads.order_by(models.Google_Roads_Json.id)
     roads = all_roads.offset(skip).limit(limit).all()
     return roads
+
+@router.put('/api/edit_google_road_json/{road_name}')
+async def edit_google_road_json(road_name: str, road_data: EditGoogleJsonRoads, db: Session = Depends(get_db)):
+    road = db.query(models.Google_Roads_Json).filter(models.Google_Roads_Json.name == road_name).first()
+    if not road:
+        raise HTTPException(status_code=404, detail="Road not found")
+    
+    # Convert Pydantic model to dictionary
+    update_data = road_data.dict(exclude_unset=True)
+    
+    # Update the road data
+    for key, value in update_data.items():
+        setattr(road, key, value)
+    
+    db.commit()
+    return {"message": "Road updated successfully"}
+
+@router.get('/api/google_road_stats')
+async def get_google_road_stats(
+    state_name: str, 
+    start_date: date = None, 
+    end_date: date = None, 
+    db: Session = Depends(get_db)
+):
+    # Start with the base query to get total length of roads for the given state name
+    total_length_query = db.query(func.sum(Google_Roads_Json.length)).filter(
+        Google_Roads_Json.state_name == state_name
+    )
+
+
+    # Execute the query to get total length
+    total_length = total_length_query.scalar() or 0  # Use scalar() to get the value, or default to 0 if no result
+
+    # Now, get other statistics
+    query = db.query(
+        func.sum(Google_Roads_Json.length).filter(Google_Roads_Json.status == 100),  # Total length where status is 100
+        func.min(Google_Roads_Json.collection_date).filter(Google_Roads_Json.status == 100)  # First date where status is 100
+    ).filter(
+        Google_Roads_Json.state_name == state_name
+    )
+
+    # Add filtering by collection date if start_date and end_date are provided
+    if start_date and end_date:
+        query = query.filter(
+            Google_Roads_Json.collection_date >= start_date,
+            Google_Roads_Json.collection_date <= end_date
+        )
+
+    # Execute the query
+    total_length_status_100, first_date_status_100 = query.first()
+
+    # Calculate the percentage covered by roads where status is 100
+    percentage_covered = (total_length_status_100 / total_length) * 100 if total_length and total_length_status_100 else 0
+    
+    return {
+        "state_name": state_name,
+        "total_length": round(total_length/1000,2) if total_length else 0,
+        "total_length_status_100": round(total_length_status_100/1000,2) if total_length_status_100 else 0,
+        "first_date_status_100": first_date_status_100 if first_date_status_100 else "Not started yet",
+        "percentage_covered": round(percentage_covered, 2)
+    }    
+    
+@router.get('/api/stats_camera')
+async def get_camera_stats(
+    camera_number: int, 
+    start_date: date = None, 
+    end_date: date = None, 
+    db: Session = Depends(get_db)
+):
+    # Start with the base query
+    query = db.query(
+        func.sum(Google_Roads_Json.length),  # Total length of all roads where status is 100
+        func.sum(case((Google_Roads_Json.camera_number == camera_number, Google_Roads_Json.length), else_=0)),  # Length of roads with status 100 and matching camera number
+    ).filter(
+        Google_Roads_Json.status == 100
+    )
+
+    # Add filtering by collection date if start_date and end_date are provided
+    if start_date and end_date:
+        query = query.filter(
+            Google_Roads_Json.collection_date >= start_date,
+            Google_Roads_Json.collection_date <= end_date
+        )
+
+    # Execute the query
+    stats = query.first()
+
+    total_length_status_100, length_with_camera_number = stats
+    
+    if total_length_status_100 is None:
+        total_length_status_100 = 0
+    
+    if length_with_camera_number is None:
+        length_with_camera_number = 0
+
+    # Calculate the percentage covered by the camera
+    percentage_covered = (length_with_camera_number / total_length_status_100) * 100 if total_length_status_100 != 0 else 0
+    
+    return {
+        "camera_number": camera_number,
+        "length_with_camera_number": round(length_with_camera_number/1000,2),
+        "percentage_covered": round(percentage_covered, 2)
+    }
+    
+@router.get("/api/get_progress")
+async def get_road_length_stats( 
+    start_date: date = None, 
+    end_date: date = None,
+    db: Session = Depends(get_db)):
+    # Get the sum of the length of roads where road_status is 100
+    sum_length_status_100 = db.query(func.sum(Google_Roads_Json.length)).filter(Google_Roads_Json.status == 100).scalar() or 0
+    
+    # Get the total length of all roads
+    total_length_all_roads = db.query(func.sum(Google_Roads_Json.length)).scalar() or 0
+    if start_date and end_date:
+        sum_length_status_100 = db.query(func.sum(Google_Roads_Json.length)).filter(
+            Google_Roads_Json.status == 100,
+            Google_Roads_Json.collection_date >= start_date,
+            Google_Roads_Json.collection_date <= end_date
+        ).scalar() or 0
+
+    # Calculate the percentage
+    percentage = (sum_length_status_100 / total_length_all_roads) * 100 if total_length_all_roads != 0 else 0
+    
+    return {
+        "total_covered_2024": round(sum_length_status_100 / 1000, 2),
+        "total_road_2024": round(total_length_all_roads / 1000, 2),
+        "percentage_2024": round(percentage, 2),
+        "total_covered_2023": 5727.76,
+        "total_road_2023": 56513.61,
+        "percentage_2023": round((5727.76 / 56513.61) * 100, 2),
+    }

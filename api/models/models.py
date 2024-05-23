@@ -45,22 +45,15 @@ class Google_Roads_Json(Base):
     region = Column(String, nullable= True)
     geometry = Column(JSON, nullable = True)
     
-
     
+class CameraCoverage(Base):
+    __tablename__ = "camera_coverage"
     
-    
-    
-    
-
-
-
-    
-    
-    
-    
-
-    
-    
-    
-
-    
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable= False)
+    camera_1_total = Column(Float, nullable=True)
+    camera_2_total = Column(Float, nullable=True)
+    camera_3_total = Column(Float, nullable=True)
+    camera_4_total = Column(Float, nullable=True)
+    camera_5_total = Column(Float, nullable=True)
+    camera_6_total = Column(Float, nullable= True)

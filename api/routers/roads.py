@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Depends, HTTPException
+from fastapi import APIRouter, status, Depends, HTTPException, BackgroundTasks
 #from api.schema.schemas import HubSchema, UserSchema
 from sqlalchemy.orm import Session
 from core.config import get_db
@@ -15,6 +15,7 @@ from geoalchemy2 import WKBElement
 from shapely import wkb
 from typing import List
 from api.models.models import Google_Roads_Json
+from api.tasks.tasks import update_camera_coverage_background
 
 
 router = APIRouter(tags=['Roads'])
@@ -252,7 +253,7 @@ async def get_all_google_json_roads(state_name: str = None, region: str = None, 
     return roads
 
 @router.put('/api/edit_google_road_json/{road_name}')
-async def edit_google_road_json(road_name: str, road_data: EditGoogleJsonRoads, db: Session = Depends(get_db)):
+async def edit_google_road_json(road_name: str, road_data: EditGoogleJsonRoads, background_tasks:BackgroundTasks, db: Session = Depends(get_db)):
     road = db.query(models.Google_Roads_Json).filter(models.Google_Roads_Json.name == road_name).first()
     if not road:
         raise HTTPException(status_code=404, detail="Road not found")
@@ -265,6 +266,10 @@ async def edit_google_road_json(road_name: str, road_data: EditGoogleJsonRoads, 
         setattr(road, key, value)
     
     db.commit()
+    road_length = road.length
+    
+    #Perform Background task
+    background_tasks.add_task(update_camera_coverage_background, road_data.collection_date, road_data.camera_number, road_length, db)
     return {"message": "Road updated successfully"}
 
 @router.get('/api/google_road_stats')
@@ -382,3 +387,4 @@ async def get_road_length_stats(
         "total_road_2023": 56513.61,
         "percentage_2023": round((5727.76 / 56513.61) * 100, 2),
     }
+    

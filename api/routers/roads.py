@@ -255,6 +255,8 @@ async def get_all_google_json_roads(state_name: str = None, region: str = None, 
 @router.put('/api/edit_google_road_json/{road_name}')
 async def edit_google_road_json(road_name: str, road_data: EditGoogleJsonRoads, background_tasks:BackgroundTasks, db: Session = Depends(get_db)):
     road = db.query(models.Google_Roads_Json).filter(models.Google_Roads_Json.name == road_name).first()
+    road_length = road.length
+    road_col_date = road.collection_date
     if not road:
         raise HTTPException(status_code=404, detail="Road not found")
     
@@ -266,10 +268,9 @@ async def edit_google_road_json(road_name: str, road_data: EditGoogleJsonRoads, 
         setattr(road, key, value)
     
     db.commit()
-    road_length = road.length
-    
-    #Perform Background task
-    background_tasks.add_task(update_camera_coverage_background, road_data.collection_date, road_data.camera_number, road_length, db)
+    print(road_col_date)
+    if road_col_date == datetime.strptime("2030-01-01", "%Y-%m-%d").date():
+        background_tasks.add_task(update_camera_coverage_background, road_data.collection_date, road_data.camera_number, road_length, db)
     return {"message": "Road updated successfully"}
 
 @router.get('/api/google_road_stats')

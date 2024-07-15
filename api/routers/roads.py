@@ -4,11 +4,11 @@ from sqlalchemy.orm import Session
 from core.config import get_db
 from api.models import models
 ###############################################################
-from api.schema.schemas import CreateGoogleRoads, CreateCollectedRoads, EditGoogleRoads, GeneralStatistics, StateStatistics, CreateGoogleJsonRoads, EditGoogleJsonRoads
+from api.schema.schemas import CreateGoogleRoads, CreateCollectedRoads, EditGoogleRoads, GeneralStatistics, StateStatistics, CreateGoogleJsonRoads, EditGoogleJsonRoads, CameraCoverageSchema
 #from api.models.models import Road
 from api.repository.roadsrepo import create_google_roads, road_already_uploaded, edit_google_data, json_road_already_uploaded, create_google_json_roads
 from datetime import datetime, date
-from sqlalchemy import func, case
+from sqlalchemy import func, case, and_
 
 from shapely.geometry import MultiLineString, LineString, shape
 from geoalchemy2 import WKBElement
@@ -388,4 +388,24 @@ async def get_road_length_stats(
         "total_road_2023": 56513.61,
         "percentage_2023": round((5727.76 / 56513.61) * 100, 2),
     }
+    
+    
+@router.get('/api/get_daily_data', response_model=List[CameraCoverageSchema])
+async def get_daily_data(
+    start_date: date = None, 
+    end_date: date = None,
+    db:Session=Depends(get_db)):
+    query = db.query(models.CameraCoverage)
+    
+    if start_date and end_date:
+        query = query.filter(and_(models.CameraCoverage.date >= start_date, models.CameraCoverage.date <= end_date))
+    elif start_date:
+        query = query.filter(models.CameraCoverage.date >= start_date)
+    elif end_date:
+        query = query.filter(models.CameraCoverage.date <= end_date)
+    
+    camera_coverages = query.all()
+    return camera_coverages
+        
+    return camera_coverages
     

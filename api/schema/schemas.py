@@ -130,3 +130,15 @@ class EditGoogleJsonRoads(BaseModel):
     state_name: Optional[str] = None
     region: Optional[str] = None
     geometry: Optional[dict] = None
+
+    
+class CameraCoverageSchema(BaseModel):
+    id: int
+    date: date
+    camera_1_total: Optional[float] = None
+    camera_2_total: Optional[float] = None
+    camera_3_total: Optional[float] = None
+    camera_4_total: Optional[float] = None
+    camera_5_total: Optional[float] = None
+    camera_6_total: Optional[float] = None
+

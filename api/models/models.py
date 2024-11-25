@@ -43,8 +43,14 @@ class Google_Roads_Json(Base):
     upload_date = Column(Date, nullable= True)
     state_name = Column(String, nullable= True)
     region = Column(String, nullable= True)
+    scope_name = Column(String, nullable= True)
     geometry = Column(JSON, nullable = True)
     
+    # Foreign key to Hubs
+    hub_id = Column(Integer, ForeignKey('Hubs_data.id'), nullable=True)
+
+    # Relationship to Hubs
+    hub = relationship("Hubs", back_populates="roads")
     
 class CameraCoverage(Base):
     __tablename__ = "camera_coverage"
@@ -57,3 +63,21 @@ class CameraCoverage(Base):
     camera_4_total = Column(Float, nullable=True)
     camera_5_total = Column(Float, nullable=True)
     camera_6_total = Column(Float, nullable= True)
+    
+####################################################################################################
+## Hubs database
+
+class Hubs(Base):
+    __tablename__ = "Hubs_data"
+    
+    id = Column(Integer, primary_key =True, index=True)
+    name = Column(String, nullable=True)
+    total_road_length = Column(Float, nullable= True)
+    total_road_number = Column(Integer, nullable = True)
+    state = Column(String, nullable= True)
+    region = Column(String, nullable= True)
+    geometry = Column(JSON, nullable = True)
+    
+    # Relationship to Google Roads
+    roads = relationship("Google_Roads_Json", back_populates = "hub")
+    

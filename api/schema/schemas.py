@@ -1,7 +1,8 @@
 from pydantic import BaseModel, EmailStr
 from datetime import date, datetime
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Dict, Any
 from passlib.context import CryptContext
+from api.controllers.enum import StateNameEnum, RegionEnum
 
 
 
@@ -141,4 +142,63 @@ class CameraCoverageSchema(BaseModel):
     camera_4_total: Optional[float] = None
     camera_5_total: Optional[float] = None
     camera_6_total: Optional[float] = None
+    
+    
+################################################################
+##2025 SCHEMAS
+
+class Hubs2025Response(BaseModel):
+    id: int
+    name: str
+    total_road_length: float
+    total_road_number: int
+    geometry: List[List[List[List]]]
+
+    class Config:
+        from_attributes=True
+        
+class PaginationResponse(BaseModel):
+    count: int
+    next: Optional[int] = None  # The page number of the next set of results
+    previous: Optional[int] = None  # The page number of the previous set of results
+    results: List[Hubs2025Response]
+    
+    
+class Roads2025Response(BaseModel):
+    id: int
+    name: str
+    length: float
+    assigned_cam_number: Optional[int]
+    camera_number: Optional[int]
+    status: int
+    assignment_date: Optional[date]
+    collection_date: Optional[date]
+    upload_status: str
+    upload_date: Optional[date]
+    state_name: StateNameEnum
+    region: RegionEnum
+    scope_name: str
+    hub_id: int
+    geometry: List[List[List]]
+
+    class Config:
+        from_attributes=True
+        
+class PaginationRoadResponse(BaseModel):
+    count: int
+    next: Optional[int] = None  # The page number of the next set of results
+    previous: Optional[int] = None  # The page number of the previous set of results
+    results: List[Roads2025Response]
+    
+class CurrentStateResponse(BaseModel):
+    id: int
+    state: str  # Assuming StateNameEnum values are strings
+    coordinates: Dict[str, Any]  # JSON field for coordinates
+    active: bool
+
+    class Config:
+        from_attributes = True 
+        
+class HubNamesResponse(BaseModel):
+    scope_name: Dict[str, Dict[str, List[str]]]
 

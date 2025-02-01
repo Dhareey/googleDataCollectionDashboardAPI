@@ -27,8 +27,3 @@ app.add_middleware(
 
 app.include_router(roads.router)
 #ngrok http 8000
-## things to write for T
-## Short explanation of the process
-## Significance
-## Challenges faced
-## Final output

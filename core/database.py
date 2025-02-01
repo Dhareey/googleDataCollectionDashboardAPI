@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 import os
 from dotenv import load_dotenv
 from pathlib import Path
@@ -31,15 +32,19 @@ class Settings:
     AWS_URL: str= os.getenv("AWS_DB")
 
     #DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
+    #DATABASE_URL_ASYNC = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_SERVER}/{POSTGRES_DB}"
+    #DATABASE_URL = f"{AWS_URL}"
     #DATABASE_URL = f"{AWS_URL}"
     #DATABASE_URL = f"{RENDER_DB_URL}"
     
     DATABASE_URL= f"postgresql://{RENDER_POSTGRES_USER}:{RENDER_POSTGRES_PASSWORD}@{RENDER_POSTGRES_SERVER}/{RENDER_DB}"
+    DATABASE_URL_ASYNC= f"postgresql+asyncpg://{RENDER_POSTGRES_USER}:{RENDER_POSTGRES_PASSWORD}@{RENDER_POSTGRES_SERVER}/{RENDER_DB}"
 
 
 settings = Settings()
 
 SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
+ASYNC_DATABASE_URL = settings.DATABASE_URL_ASYNC
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
@@ -50,3 +55,21 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
+
+########################################
+async_engine = create_async_engine(ASYNC_DATABASE_URL, echo=True)
+
+# Create a sessionmaker factory for async sessions
+async_session = sessionmaker(
+    async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
+
+# Base for declaring models
+#async_base = declarative_base()
+
+# Dependency to provide a session
+async def get_async_session() -> AsyncSession:
+    async with async_session() as session:
+        yield session

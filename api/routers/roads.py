@@ -1,10 +1,28 @@
-from fastapi import APIRouter, status, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, status, Depends, HTTPException, BackgroundTasks, Query
 #from api.schema.schemas import HubSchema, UserSchema
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import get_db
-from api.models import models
+from api.models.models import Hubs2025, Roads2025
+from core.database import get_async_session
 ###############################################################
-from api.schema.schemas import CreateGoogleRoads, CreateCollectedRoads, EditGoogleRoads, GeneralStatistics, StateStatistics, CreateGoogleJsonRoads, EditGoogleJsonRoads, CameraCoverageSchema
+from api.schema.schemas import (
+    CreateGoogleRoads, 
+    CreateCollectedRoads, 
+    EditGoogleRoads, 
+    GeneralStatistics, 
+    StateStatistics, 
+    CreateGoogleJsonRoads, 
+    EditGoogleJsonRoads, 
+    CameraCoverageSchema,
+    Hubs2025Response,
+    PaginationResponse,
+    PaginationRoadResponse,
+    CurrentStateResponse,
+    HubNamesResponse
+)
+from typing import Optional
+from sqlalchemy.future import select
 #from api.models.models import Road
 from api.repository.roadsrepo import create_google_roads, road_already_uploaded, edit_google_data, json_road_already_uploaded, create_google_json_roads
 from datetime import datetime, date
@@ -15,10 +33,15 @@ from geoalchemy2 import WKBElement
 from shapely import wkb
 from typing import List
 from api.models.models import Google_Roads_Json
+from api.models import models
 from api.tasks.tasks import update_camera_coverage_background
 
 
 router = APIRouter(tags=['Roads'])
+
+# Pagination helper
+def paginate(query, page: int, page_size: int):
+    return query.limit(page_size).offset((page - 1) * page_size)
 
 
 @router.post('/api/create_google_road')
@@ -408,4 +431,150 @@ async def get_daily_data(
     return camera_coverages
         
     return camera_coverages
+
+####################################################################################################
+###2025 ENDPOINTS
+
+# GET all 2025 Hubs with pagination
+@router.get("/hubs_2025", response_model=list[Hubs2025Response])
+async def get_all_hubs(
+    page: int = Query(1, ge=1),  # Default page = 1
+    session: AsyncSession = Depends(get_async_session),
+):
+    query = select(Hubs2025)
+    paginated_query = paginate(query, page, 1000)  # 1000 rows per page
+    result = await session.execute(paginated_query)
+    return result.scalars().all()
+
+@router.get("/api/hubs", status_code=status.HTTP_200_OK, response_model=PaginationResponse)
+async def get_all_2005_hubs(
+    page: int = Query(1, ge=1),  # Default page is 1, and must be greater than or equal to 1
+    limit: int = Query(1000, le=1000),  # Default limit is 10, maximum limit is 100
+    db: Session = Depends(get_db)
+):
+    # Calculate offset for pagination
+    offset = (page - 1) * limit
+
+    # Query the database with offset and limit
+    query = db.query(Hubs2025)
     
+    # Get the total count of hubs
+    total_count = query.count()
+
+    # Query the data for the current page
+    hubs = query.offset(offset).limit(limit).all()
+
+    # Calculate next and previous pages
+    next_page = page + 1 if offset + limit < total_count else None
+    previous_page = page - 1 if page > 1 else None
+
+    return {
+        "count": total_count,
+        "next": next_page,
+        "previous": previous_page,
+        "results": hubs,
+    }
+    
+@router.get("/api/roads_2025", status_code=status.HTTP_200_OK, response_model=PaginationRoadResponse)
+async def get_all_2005_hubs(
+    state_name: Optional[str] = None,
+    region: Optional[str] = None,
+    assigned_cam_number: Optional[int] = None,
+    camera_number: Optional[int] = None,
+    status: Optional[int] = None,
+    collected_date: Optional[str] = None,  # If using ISO 8601 format
+    hub_id: Optional[int] = None,
+    scope_name: Optional[str] = None,
+    upload_status: Optional[str] = None,
+    name: Optional[str] = None,
+    page: int = Query(1, ge=1),  # Default page is 1, and must be greater than or equal to 1
+    limit: int = Query(1000, le=1000),  # Default limit is 10, maximum limit is 100
+    db: Session = Depends(get_db)
+):
+    # Query the data
+    query = db.query(Roads2025)
+    
+    #Apply filters if any
+    if state_name:
+        query = query.filter(Roads2025.state_name == state_name.replace(" ", "_").upper())
+    if region:
+        query = query.filter(Roads2025.region == region.replace(" ", "_").upper())
+    if assigned_cam_number is not None:
+        query = query.filter(Roads2025.assigned_cam_number == assigned_cam_number)
+    if camera_number is not None:
+        query = query.filter(Roads2025.camera_number == camera_number)
+    if status is not None:
+        query = query.filter(Roads2025.status == status)
+    if collected_date:
+        query = query.filter(Roads2025.collection_date == collected_date)
+    if hub_id is not None:
+        query = query.filter(Roads2025.hub_id == hub_id)
+    if scope_name:
+        query = query.filter(Roads2025.scope_name == scope_name)
+    if upload_status:
+        query = query.filter(Roads2025.upload_status == upload_status)
+    if name:
+        query = query.filter(Roads2025.name.ilike(f"%{name}%"))  # Case-insensitive partial match
+
+    
+    # Calculate offset for pagination
+    offset = (page - 1) * limit
+
+    # Sort by ID and paginate results
+    query = query.order_by(Roads2025.id)
+    
+    total_count = query.count()
+
+    # Query the data for the current page
+    roads = query.offset(offset).limit(limit).all()
+
+    # Calculate next and previous pages
+    next_page = page + 1 if offset + limit < total_count else None
+    previous_page = page - 1 if page > 1 else None
+
+    return {
+        "count": total_count,
+        "next": next_page,
+        "previous": previous_page,
+        "results": roads,
+    }
+    
+@router.get("/api/current-state/", response_model=CurrentStateResponse)
+def get_current_state(db: Session = Depends(get_db)):
+    # Query the database to find the active state
+    active_state = db.query(models.Currentstate).filter(models.Currentstate.active == True).first()
+
+    # If no active state is found, raise a 404 error
+    if not active_state:
+        raise HTTPException(status_code=404, detail="No active state found")
+
+    # Return the active state
+    return active_state
+
+
+
+@router.get("/api/scope-hubs/", response_model=HubNamesResponse)
+def get_scope_hubs(db: Session = Depends(get_db)):
+    # Query the database to get all roads with their associated hubs
+    roads_with_hubs = db.query(Roads2025.scope_name, Roads2025.state_name, Hubs2025.name).join(
+        Hubs2025, Roads2025.hub_id == Hubs2025.id
+    ).all()
+
+    # If no data is found, raise a 404 error
+    if not roads_with_hubs:
+        raise HTTPException(status_code=404, detail="No data found")
+
+    # Organize the data into the required structure
+    result = {}
+    for scope_name, state_name, hub_name in roads_with_hubs:
+        # Convert state_name from Enum to string
+        state_name_str = state_name.value  # Assuming StateNameEnum uses .value for the string representation
+
+        if scope_name not in result:
+            result[scope_name] = {}
+        if state_name_str not in result[scope_name]:
+            result[scope_name][state_name_str] = []
+        if hub_name not in result[scope_name][state_name_str]:  # Avoid duplicates
+            result[scope_name][state_name_str].append(hub_name)
+
+    return {"scope_name": result}

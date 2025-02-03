@@ -202,3 +202,10 @@ class CurrentStateResponse(BaseModel):
 class HubNamesResponse(BaseModel):
     scope_name: Dict[str, Dict[str, List[str]]]
 
+# Pydantic model for request body
+class UpdateRoadRequest(BaseModel):
+    road_name: str
+    camera_number: int
+    vid_number: str
+    collection_date: Optional[date] = None
+

@@ -136,3 +136,4 @@ class Currentstate(Base):
     state = Column(Enum(StateNameEnum), nullable=False)
     coordinates = Column(JSON, nullable=False)
     active = Column(Boolean, nullable=False, default=False)
+

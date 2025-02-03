@@ -19,7 +19,8 @@ from api.schema.schemas import (
     PaginationResponse,
     PaginationRoadResponse,
     CurrentStateResponse,
-    HubNamesResponse
+    HubNamesResponse,
+    UpdateRoadRequest
 )
 from typing import Optional
 from sqlalchemy.future import select
@@ -35,6 +36,7 @@ from typing import List
 from api.models.models import Google_Roads_Json
 from api.models import models
 from api.tasks.tasks import update_camera_coverage_background
+from datetime import datetime, timedelta
 
 
 router = APIRouter(tags=['Roads'])
@@ -578,3 +580,182 @@ def get_scope_hubs(db: Session = Depends(get_db)):
             result[scope_name][state_name_str].append(hub_name)
 
     return {"scope_name": result}
+
+
+@router.get("/api/get_camera_stat/{camera_number}")
+def get_camera_stat(
+    camera_number: int,
+    state: Optional[str] = None,
+    region: Optional[str] = None,
+    hub_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    # Base query for total length of the specified camera_number
+    camera_query = db.query(func.sum(Roads2025.length)).filter(
+        Roads2025.camera_number == camera_number,
+        Roads2025.status == 100
+    )
+
+    # Base query for total length of all roads (status == 100)
+    total_query = db.query(func.sum(Roads2025.length)).filter(
+        Roads2025.status == 100
+    )
+
+    # Apply optional filters to both queries
+    if state:
+        camera_query = camera_query.filter(Roads2025.state_name == state)
+        total_query = total_query.filter(Roads2025.state_name == state)
+    if region:
+        camera_query = camera_query.filter(Roads2025.region == region)
+        total_query = total_query.filter(Roads2025.region == region)
+    if hub_id:
+        camera_query = camera_query.filter(Roads2025.hub_id == hub_id)
+        total_query = total_query.filter(Roads2025.hub_id == hub_id)
+    if start_date and end_date:
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        camera_query = camera_query.filter(
+            Roads2025.collection_date >= start_date,
+            Roads2025.collection_date <= end_date
+        )
+        total_query = total_query.filter(
+            Roads2025.collection_date >= start_date,
+            Roads2025.collection_date <= end_date
+        )
+
+    # Calculate total length for the specified camera_number
+    camera_total_length = camera_query.scalar() or 0
+
+    # Calculate total length for all roads (status == 100)
+    all_total_length = total_query.scalar() or 0
+
+    # Calculate percentage
+    percentage = 0
+    if all_total_length > 0:
+        percentage = (camera_total_length / all_total_length) * 100
+
+    # Calculate weekly report for the last 4 weeks
+    weekly_report = []
+    today = datetime.today().date()
+    for week in range(4):
+        week_start = today - timedelta(days=(today.weekday() + 7 * week))
+        week_end = week_start + timedelta(days=6)
+
+        # Query for the week's total length for the specified camera_number
+        week_query = db.query(func.sum(Roads2025.length)).filter(
+            Roads2025.camera_number == camera_number,
+            Roads2025.status == 100,
+            Roads2025.collection_date >= week_start,
+            Roads2025.collection_date <= week_end
+        )
+
+        # Apply the same optional filters to the weekly query
+        if state:
+            week_query = week_query.filter(Roads2025.state_name == state)
+        if region:
+            week_query = week_query.filter(Roads2025.region == region)
+        if hub_id:
+            week_query = week_query.filter(Roads2025.hub_id == hub_id)
+
+        week_total_length = week_query.scalar() or 0
+        weekly_report.append(week_total_length)
+
+    return {
+        "camera_number": camera_number,
+        "total_length": camera_total_length,
+        "percentage": round(percentage, 2),  # Round to 2 decimal places
+        "weekly_report": weekly_report
+    }
+
+@router.get("/api/get_2025_state_stats")
+def get_2025_state_stats(
+    hub_id: Optional[int] = None,
+    region: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    # Base query to get total length covered (status == 100) and total length for each state
+    query = db.query(
+        Roads2025.state_name,
+        func.sum(Roads2025.length).filter(Roads2025.status == 100).label("total_length_covered"),
+        func.sum(Roads2025.length).label("total_length_all")
+    ).group_by(Roads2025.state_name)
+
+    # Apply optional filters
+    if hub_id:
+        query = query.filter(Roads2025.hub_id == hub_id)
+    if region:
+        query = query.filter(Roads2025.region == region)
+    if start_date and end_date:
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        query = query.filter(
+            and_(
+                Roads2025.collection_date >= start_date,
+                Roads2025.collection_date <= end_date
+            )
+        )
+
+    # Execute the query
+    state_stats = query.all()
+
+    # Calculate percentage_covered for each state
+    result = []
+    for state, total_length_covered, total_length_all in state_stats:
+        # Handle None values
+        total_length_covered = total_length_covered or 0
+        total_length_all = total_length_all or 0
+
+        # Calculate percentage_covered
+        percentage_covered = 0
+        if total_length_all > 0:
+            percentage_covered = (total_length_covered / total_length_all) * 100
+
+        result.append({
+            "state": state,
+            "total_length_covered": total_length_covered,
+            "percentage_covered": round(percentage_covered, 2)  # Round to 2 decimal places
+        })
+
+    return result
+
+
+@router.put("/api/update_2025_road")
+def update_road(request: UpdateRoadRequest, db: Session = Depends(get_db)):
+    # Find the row by road_name
+    road = db.query(Roads2025).filter(Roads2025.name == request.road_name).first()
+    if not road:
+        raise HTTPException(status_code=404, detail="Road not found")
+
+    # Update camera_number and vid_number
+    road.camera_number = request.camera_number
+    road.vid_number = request.vid_number
+
+    # Update status to 100
+    road.status = 100
+
+    # Update collection_date or second_collection_date
+    if request.collection_date:
+        if road.collection_date:  # If collection_date is already filled
+            road.second_collection_date = request.collection_date
+        else:  # If collection_date is not filled
+            road.collection_date = request.collection_date
+
+    # Commit changes to the database
+    db.commit()
+    db.refresh(road)
+
+    #Set current state
+    db.query(models.Currentstate).update({"active": False})
+
+    # Find or create the current state entry for the updated road's state
+    current_state = db.query(models.Currentstate).filter(models.Currentstate.state == road.state_name).first()
+    print(current_state.state)
+    current_state.active = True
+    db.commit()
+    db.refresh(current_state)
+
+    return {"message": "Road updated successfully", "road": road}

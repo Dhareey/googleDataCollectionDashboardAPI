@@ -170,14 +170,20 @@ class Roads2025Response(BaseModel):
     length: float
     assigned_cam_number: Optional[int]
     camera_number: Optional[int]
+    second_camera_number: Optional[str]
     status: int
     assignment_date: Optional[date]
     collection_date: Optional[date]
+    second_collection_date: Optional[date]
     upload_status: str
     upload_date: Optional[date]
     state_name: StateNameEnum
     region: RegionEnum
     scope_name: str
+    vid_number: Optional[str]
+    container_id: Optional[str]
+    ingestion_tracker: Optional[str]
+    ingestion_tracker_date: Optional[date]
     hub_id: int
     geometry: List[List[List]]
 
@@ -192,8 +198,8 @@ class PaginationRoadResponse(BaseModel):
     
 class CurrentStateResponse(BaseModel):
     id: int
-    state: str  # Assuming StateNameEnum values are strings
-    coordinates: Dict[str, Any]  # JSON field for coordinates
+    state: StateNameEnum
+    coordinates: Dict[str, Any]
     active: bool
 
     class Config:
@@ -208,4 +214,7 @@ class UpdateRoadRequest(BaseModel):
     camera_number: int
     vid_number: str
     collection_date: Optional[date] = None
+    
+class StatesResponse(BaseModel):
+    states: List[StateNameEnum]
 

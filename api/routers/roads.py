@@ -18,9 +18,10 @@ from api.schema.schemas import (
     Hubs2025Response,
     PaginationResponse,
     PaginationRoadResponse,
-    CurrentStateResponse,
     HubNamesResponse,
-    UpdateRoadRequest
+    UpdateRoadRequest,
+    StatesResponse,
+    CurrentStateResponse
 )
 from typing import Optional
 from sqlalchemy.future import select
@@ -115,14 +116,7 @@ async def get_one_road(id : str, db:Session=Depends(get_db)):
 @router.put("/api/update_google_road/{road_id}", status_code = status.HTTP_200_OK)
 async def update_google_road(road_id: str, updated_road: EditGoogleRoads, db: Session= Depends(get_db)):
     return edit_google_data(road_id, updated_road, db)
-    
-    # Update the road attributes with the provided data
-    
-        
-    #db.commit()
-    #db.refresh(existing_road)
-    #return existing_road
-    return "Done"
+
 
 @router.get("/api/get_stats", response_model =GeneralStatistics, status_code= status.HTTP_200_OK)
 async def get_general_stats(db: Session = Depends(get_db), col_start_date: str = None, col_end_date: str = None):
@@ -759,3 +753,29 @@ def update_road(request: UpdateRoadRequest, db: Session = Depends(get_db)):
     db.refresh(current_state)
 
     return {"message": "Road updated successfully", "road": road}
+
+
+@router.get("/all-covered-2025-states/", response_model=StatesResponse)
+def get_all_state_covered(db: Session = Depends(get_db)):
+    # Step 1: Fetch all states where status == 100
+    states_with_status_100 = (
+        db.query(Roads2025.state_name)
+        .filter(Roads2025.status == 100)
+        .distinct()  # Ensure unique states
+        .all()
+    )
+
+    # Extract state names from the query result
+    state_names = [state.state_name for state in states_with_status_100]
+
+    # Step 2: Fetch the active state from the Currentstate table
+    active_state = db.query(models.Currentstate.state).filter(models.Currentstate.active == True).first()
+
+    # Step 3: Arrange the states such that the active state is first
+    if active_state and active_state.state in state_names:
+        # Move the active state to the beginning of the list
+        state_names.remove(active_state.state)  # Remove the active state from its current position
+        state_names.insert(0, active_state.state)  # Insert it at the beginning
+
+    # Step 4: Return the list of states
+    return {"states": state_names}

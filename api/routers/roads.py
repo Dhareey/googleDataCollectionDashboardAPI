@@ -658,7 +658,7 @@ def get_camera_stat(
 
     return {
         "camera_number": camera_number,
-        "total_length": camera_total_length,
+        "total_length": round(camera_total_length, 2),
         "percentage": round(percentage, 2),  # Round to 2 decimal places
         "weekly_report": weekly_report
     }

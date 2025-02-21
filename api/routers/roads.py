@@ -654,7 +654,7 @@ def get_camera_stat(
             week_query = week_query.filter(Roads2025.hub_id == hub_id)
 
         week_total_length = week_query.scalar() or 0
-        weekly_report.append(week_total_length)
+        weekly_report.append(round(week_total_length, 1))
 
     return {
         "camera_number": camera_number,
@@ -779,3 +779,70 @@ def get_all_state_covered(db: Session = Depends(get_db)):
 
     # Step 4: Return the list of states
     return {"states": state_names}
+
+
+@router.get("/api/get_all_cameras_stat/")
+def get_all_cameras_stat(
+    state: Optional[str] = None,
+    region: Optional[str] = None,
+    hub_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    # Base query for total length of all roads (status == 100) for all cameras
+    total_query = db.query(func.sum(Roads2025.length)).filter(
+        Roads2025.status == 100
+    )
+
+    # Apply optional filters to the total query
+    if state:
+        total_query = total_query.filter(Roads2025.state_name == state)
+    if region:
+        total_query = total_query.filter(Roads2025.region == region)
+    if hub_id:
+        total_query = total_query.filter(Roads2025.hub_id == hub_id)
+    if start_date and end_date:
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+        total_query = total_query.filter(
+            Roads2025.collection_date >= start_date,
+            Roads2025.collection_date <= end_date
+        )
+
+    # Calculate total length for all roads (status == 100)
+    all_total_length = total_query.scalar() or 0
+
+    # Calculate percentage coverage (assuming total_length is the same as all_total_length)
+    percentage = 100  # Since we're considering all cameras, coverage is 100%
+
+    # Calculate weekly report for the last 10 weeks
+    weekly_report = []
+    today = datetime.today().date()
+    for week in range(10):
+        week_start = today - timedelta(days=(today.weekday() + 7 * week))
+        week_end = week_start + timedelta(days=6)
+
+        # Query for the week's total length for all cameras
+        week_query = db.query(func.sum(Roads2025.length)).filter(
+            Roads2025.status == 100,
+            Roads2025.collection_date >= week_start,
+            Roads2025.collection_date <= week_end
+        )
+
+        # Apply the same optional filters to the weekly query
+        if state:
+            week_query = week_query.filter(Roads2025.state_name == state)
+        if region:
+            week_query = week_query.filter(Roads2025.region == region)
+        if hub_id:
+            week_query = week_query.filter(Roads2025.hub_id == hub_id)
+
+        week_total_length = week_query.scalar() or 0
+        weekly_report.append(round(week_total_length, 2))
+
+    return {
+        "total_length": round(all_total_length, 2),
+        "percentage": round(percentage, 1),  # Round to 2 decimal places
+        "weekly_report": weekly_report
+    }
